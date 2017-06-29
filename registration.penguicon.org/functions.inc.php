@@ -1,0 +1,941 @@
+<?php
+
+function add_to_cart($db,$session,$first_array,$second_array) {
+    //For badges, first_array is $badge_cost, second_array is $badge_types
+    //For ribbons, first_array is $ribbon_color, second_array is $ribbon_text
+
+    //It's sloppy, but I'm going to do it anyway... make premium color array global
+    global $premium_ribbon_color;
+    global $ribbon_font_choices;
+
+    $fields = "";
+    $values = "";
+
+    $has_error = 0;
+
+    $fields = "session";
+    $values = "'".$session."'";
+
+    $email_required = 0;
+
+    $email_reminder = "no";
+    if ($_POST['email_reminder'] == "yes") {
+        $email_reminder = "yes";
+        $email_required = 1;
+    }
+
+    $confirm_process = "no";
+    if ($_POST['email_process_confirmation'] == "yes") {
+        $confirm_process = "yes";
+        $email_required = 1;
+    }
+
+    $email_address_inc = $_POST['attendee_email'];
+
+    if ($email_required) {
+        if (!$_POST['attendee_email']) {
+            $has_error = 1;
+            $error_loc = "attendee_email";
+            $error_text = "You\'ve asked for emails to be sent, but you haven\'t provided and email address.";
+            $error_sql = "INSERT INTO order_errors (session,error_type,error_text,error_field) ";
+            $error_sql .= "VALUES ('".$session."','error','".$error_text."','".$error_loc."')";
+            $temp = mysql_query($error_sql);
+        } else {
+            if (!validate_email($email_address_inc)) {
+                $has_error = 1;
+                $error_loc = "attendee_email";
+                $error_text = "Email address is not valid.";
+                $error_sql = "INSERT INTO order_errors (session,error_type,error_text,error_field) ";
+                $error_sql .= "VALUES ('".$session."','error','".$error_text."','".$error_loc."')";
+                $temp = mysql_query($error_sql);
+            }
+        }
+    }
+
+    if (!$has_error) {
+        $email_address = mysql_real_escape_string($email_address_inc);
+        $fields .= ",email,email_processed,email_reminder";
+        $values .= ",'".$email_address."','".$confirm_process."','".$email_reminder."'";
+    }
+
+
+  if ($_POST['cart_type'] == "badge") {
+
+      //Is it an allowed badge type?
+      if (array_key_exists($_POST['badge_type'],$second_array)) { 
+          $badge_type = mysql_real_escape_string($_POST['badge_type']);
+          $fields .= ",item_type,item_cost";
+          $values .= ",'$badge_type','".$first_array[$_POST['badge_type']]."'";
+      } else {
+        $has_error = 1;
+        $error_loc = "badge_type";
+        if ($_POST['badge_type'] == "") {
+            $error_text = "Please choose a badge.";
+        } else {
+            $error_text = "Somehow you've selected a badge type that doesn't exist!";
+        }
+        $error_sql = "INSERT INTO order_errors (session,error_type,error_text,error_field) ";
+        $error_sql .= "VALUES ('".$session."','error','".$error_text."','".$error_loc."')";
+        $temp = mysql_query($error_sql);
+
+      }
+
+      if ($_POST['last_name']) {
+          $last_name = mysql_real_escape_string($_POST['last_name']);
+          $fields .= ",lastname";
+          $values .= ",'".$last_name."'";
+      } else {
+          $has_error = 1;
+          $error_loc = "last_name";
+          $error_text = "You will have a very hard time picking up your badge with no Last Name attached to it.";
+          $error_sql = "INSERT INTO order_errors (session,error_type,error_text,error_field) ";
+          $error_sql .= "VALUES ('".$session."','error','".$error_text."','".$error_loc."')";
+          $temp = mysql_query($error_sql);
+      }
+
+      if ($_POST['first_name']) {
+          $first_name = mysql_real_escape_string($_POST['first_name']);
+          $fields .= ",firstname";
+          $values .= ",'".$first_name."'";
+      } else {
+          $has_error = 1;
+          $error_loc = "first_name";
+          $error_text = "You will have a very hard time picking up your badge with no First Name attached to it.";
+          $error_sql = "INSERT INTO order_errors (session,error_type,error_text,error_field) ";
+          $error_sql .= "VALUES ('".$session."','error','".$error_text."','".$error_loc."')";
+          $temp = mysql_query($error_sql);
+      }
+
+      if ($_POST['badge_print_name']) {
+          $badge_name = mysql_real_escape_string($_POST['badge_print_name']);
+          $fields .= ",badgename";
+          $values .= ",'".$badge_name."'";
+      }
+
+  } // End if ($_POST['cart_type'] == "badge")
+
+  if ($_POST['cart_type'] == "ribbon") {
+
+      $premium = 0;
+      if (in_array($_POST['ribbon_color'],$first_array)) { 
+          $background = mysql_real_escape_string($_POST['ribbon_color']);
+          $fields .= ",item_type,ribbon_color";
+          $values .= ",'ribbon','".$background."'";
+      } else {
+
+          if (in_array($_POST['ribbon_color'],$premium_ribbon_color)) {
+              $background = mysql_real_escape_string($_POST['ribbon_color']);
+              $fields .= ",item_type,ribbon_color";
+              $values .= ",'ribbon','".$background."'";
+              $premium = 1;
+          } else {
+
+              $has_error = 1;
+              $error_loc = "ribbon_color";
+              if ($_POST['ribbon_color'] == "") {
+                  $error_text = "Please choose a ribbon color";
+              } else {
+                  $error_text = "Somehow you've selected a ribbon color that doesn't exist!";
+              }
+              $error_sql = "INSERT INTO order_errors (session,error_type,error_text,error_field) ";
+              $error_sql .= "VALUES ('".$session."','error','".$error_text."','".$error_loc."')";
+              $temp = mysql_query($error_sql);
+          }
+      }
+
+      if (array_key_exists($_POST['ribbon_font'],$ribbon_font_choices)) { 
+          $font = mysql_real_escape_string($_POST['ribbon_font']);
+          $fields .= ",ribbon_font";
+          $values .= ",'".$font."'";
+      } else {
+          $has_error = 1;
+          $error_loc = "ribbon_font";
+          if ($_POST['ribbon_font'] == "") {
+              $error_text = "Please choose a font";
+          } else {
+              $error_text = "Somehow you've selected a font that doesn't exist!";
+          }
+          $error_sql = "INSERT INTO order_errors (session,error_type,error_text,error_field) ";
+          $error_sql .= "VALUES ('".$session."','error','".$error_text."','".$error_loc."')";
+          $temp = mysql_query($error_sql);
+      }
+
+      if (in_array($_POST['ribbon_text_color'],$second_array)) { 
+          $text_color = mysql_real_escape_string($_POST['ribbon_text_color']);
+          $fields .= ",ribbon_textcolor";
+          $values .= ",'".$text_color."'";
+      } else {
+          $has_error = 1;
+          $error_loc = "ribbon_text_color";
+          if ($_POST['ribbon_color'] == "") {
+              $error_text = "Please choose a text color";
+          } else {
+              $error_text = "Somehow you've selected a text color that doesn't exist!";
+          }
+          $error_sql = "INSERT INTO order_errors (session,error_type,error_text,error_field) ";
+          $error_sql .= "VALUES ('".$session."','error','".$error_text."','".$error_loc."')";
+          $temp = mysql_query($error_sql);
+      }
+
+      if ($_POST['ribbon_text']) {
+          if (strlen($_POST['ribbon_text']) > RIBBON_CHAR_LIMIT) {
+              $has_error = 1;
+              $error_loc = "ribbon_text";
+              $error_text = "Ribbon sizes are not infinite.  Please limit your text to 24 characters or less.";
+              $error_sql = "INSERT INTO order_errors (session,error_type,error_text,error_field) ";
+              $error_sql .= "VALUES ('".$session."','error','".$error_text."','".$error_loc."')";
+              $temp = mysql_query($error_sql);
+          } else {
+              $text_line1 = mysql_real_escape_string($_POST['ribbon_text']);
+              $fields .= ",ribbon_text";
+              $values .= ",'".$text_line1."'";
+          }
+      } else {
+          $has_error = 1;
+          $error_loc = "ribbon_text";
+          $error_text = "Please enter text for your ribbon.";
+          $error_sql = "INSERT INTO order_errors (session,error_type,error_text,error_field) ";
+          $error_sql .= "VALUES ('".$session."','error','".$error_text."','".$error_loc."')";
+          $temp = mysql_query($error_sql);
+      }
+
+      if ($_POST['ribbon_text2']) {
+          if (strlen($_POST['ribbon_text2'] > RIBBON_CHAR_LIMIT)) {
+              $has_error = 1;
+              $error_loc = "ribbon_text2";
+              $error_text = "Ribbon sizes are not infinite.  Please limit your text to 24 characters or less.";
+              $error_sql = "INSERT INTO order_errors (session,error_type,error_text,error_field) ";
+              $error_sql .= "VALUES ('".$session."','error','".$error_text."','".$error_loc."')";
+              $temp = mysql_query($error_sql);
+          } else {
+              $text_line2 = mysql_real_escape_string($_POST['ribbon_text2']);
+              $fields .= ",ribbon_text2";
+              $values .= ",'".$text_line2."'";
+          }
+      }
+
+      if ($_POST['ribbon_qty']) {
+          $allowed_chars = "1234567890";
+          if ($_POST['ribbon_qty'] > 2000) {
+              $has_error = 1;
+              $error_loc = "ribbon_qty";
+	      $error_text = "Our vendor is not prepared to handle that many ribbons.";
+              $error_text .= " Please contact ".RIBBON_EMAIL_TO;
+          }
+          if (strspn($_POST['ribbon_qty'],$allowed_chars) != strlen($_POST['ribbon_qty'])) {
+              $has_error = 1;
+              $error_loc = "ribbon_qty";
+              $error_text = "\'Quantity\' means \'How many\' and should be a whole number greater than 0.";
+              $error_sql = "INSERT INTO order_errors (session,error_type,error_text,error_field) ";
+              $error_sql .= "VALUES ('".$session."','error','".$error_text."','".$error_loc."')";
+              $temp = mysql_query($error_sql);
+          } else {
+              $item_cost = RIBBON_PER_ITEM_FEE * $_POST['ribbon_qty'];
+              if ($premium) {
+	          $item_cost = $GLOBALS['premium_ribbon_per_item_fee'] * $_POST['ribbon_qty'];
+              }
+              $setup_fee = RIBBON_SETUP_FEE;
+              if ($GLOBALS['ribbon_qty_discount_setup']) {
+                  foreach ($GLOBALS['ribbon_qty_discount_setup'] as $needed_qty => $new_cost) {
+                      if (!($_POST['ribbon_qty'] < $needed_qty)) {
+                          $setup_fee = $new_cost;
+                      }
+                  }
+              }
+              $item_cost += $setup_fee;
+              $fields .= ",ribbon_qty,item_cost";
+              $values .= ",'".$_POST['ribbon_qty']."','".$item_cost."'";
+          }
+      } else {
+          $has_error = 1;
+          $error_loc = "ribbon_qty";
+          $error_text = "Please enter a quantity.";
+          $error_sql = "INSERT INTO order_errors (session,error_type,error_text,error_field) ";
+          $error_sql .= "VALUES ('".$session."','error','".$error_text."','".$error_loc."')";
+          $temp = mysql_query($error_sql);
+      }
+
+
+
+  } // End if ($_POST['cart_type'] == "ribbon") 
+
+//  echo "<p>Fields is $fields</p>";
+//  echo "<p>Values is $values</p>";
+
+  if (!$has_error) {
+
+      if ($fields != "" && $values != "") {
+          $sql = mysql_query("INSERT INTO order_details (".$fields.") VALUES (".$values.")");
+      }
+      header("Location: ".BASEURL."/index.php");
+
+      //With the header() in place, we should never get here, but it's good practice to always return
+      //when a return is expected.
+      return;
+  } else {
+      return;
+  }
+} //End of function: add_to_cart();
+
+function display_footer_info() {
+    echo "<p class='clear'><a href='./index.php'>&lt; Back to Registration Home</a>\n";
+
+    echo "</body>\n";
+    echo "</html>\n";
+}
+
+function display_header_info($title) {
+
+    echo "<html>\n";
+    echo "<head>\n";
+    echo "<link rel='stylesheet' type='text/css' href='style.css'>\n";
+
+//For trying to control frames.  It didn't work, and I don't feel like troubleshooting it. 
+//    echo "<script>\n";
+//    echo "   if(self != top) { \n";
+//    echo "      document.getElementById('text1').style.color = 'white'\n";
+//    echo "   }\n";
+//    echo "</script>\n";
+
+    echo "<title>".$title."</title>\n";
+    echo "</head>\n";
+
+}
+
+function display_info_block($badge_types,$badge_cost) {
+
+    if (TODAY < PREREG_CLOSES) {
+        echo "<p>Badge prices are:</p>\n";
+        echo "<ul>\n";
+        foreach ($badge_types as $type => $display) {
+            echo "<li>".$display." badges cost $".$badge_cost[$type]."\n";
+        }
+        echo "</ul>\n";
+    }
+
+    if (RIBBONS_AVAILABLE && (TODAY < RIBBON_CLOSES)) {
+        echo "<p><b>Ribbon</b> prices are $".RIBBON_PER_ITEM_FEE." per ribbon";
+        if (RIBBON_SETUP_FEE > 0) {
+            echo " plus $".RIBBON_SETUP_FEE." per design.</p>\n";
+        }
+    }
+
+    if (SPECIAL_BADGES_AVAILABLE && (TODAY < PREREG_CLOSES)) {
+        echo WARNING_FOR_SPECIAL_BADGES;
+    }
+
+    echo "<p>During certain periods of time, some special-badge prices may be more than a regular weekend badge.  It is okay to ";
+    echo "just order a weekend badge, if your special badge is priced higher.  (Except ConCom.  But if you're ConCom, you already know that.)\n";
+
+} //End of function: display_info_block()
+
+function edit_cart($db,$session) {
+
+//Look for submit.  If it's not there, we're done.
+//Do I even need to do this??
+    if (!$_POST['submit']) {
+         return;
+    }
+
+//Get all the cart items for our session variable.
+
+    if ($session != "") {
+        $sql = mysql_query("SELECT * FROM order_details WHERE session='".$session."'");
+
+        while ($row = mysql_fetch_array($sql)) {
+           $has_error = 0;
+           $updates = "";
+
+           if ($_POST['delete-'.$row['id']] == "delete") {
+               $delete_sql = mysql_query("DELETE FROM order_details WHERE id='".$row['id']."'");
+           } else {
+
+               if ($_POST['firstname-'.$row['id']] != $row['firstname']) {
+                   if ($_POST['firstname-'.$row['id']] == "") {
+	               $has_error = 1;
+                       $error_loc = "firstname-".$row['id'];
+                       $error_text = "First name cannot be blank.";
+                       $error_sql = "INSERT INTO order_errors (session,error_type,error_text,error_field) ";
+                       $error_sql .= "VALUES ('".$session."','error','".$error_text."','".$error_loc."')";
+                       $temp = mysql_query($error_sql);
+                   } else {
+                       if ($updates != "") { $updates .= ", "; }
+                       $updates .= "firstname = '";
+                       $updates .= mysql_real_escape_string($_POST['firstname-'.$row['id']]);
+                       $updates .= "'";
+                   }
+               }
+
+               if ($_POST['lastname-'.$row['id']] != $row['lastname']) {
+                   if ($_POST['lastname-'.$row['id']] == "") {
+	               $has_error = 1;
+                       $error_loc = "lastname-".$row['id'];
+                       $error_text = "Last name cannot be blank.";
+                       $error_sql = "INSERT INTO order_errors (session,error_type,error_text,error_field) ";
+                       $error_sql .= "VALUES ('".$session."','error','".$error_text."','".$error_loc."')";
+                       $temp = mysql_query($error_sql);
+                   } else {
+                       if ($updates != "") { $updates .= ", "; }
+                       $updates .= "lastname = '";
+                       $updates .= mysql_real_escape_string($_POST['lastname-'.$row['id']]);
+                       $updates .= "'";
+                   }
+               }
+
+               if ($_POST['badgename-'.$row['id']] != $row['badgename']) {
+                   if ($updates != "") { $updates .= ", "; }
+                   $updates .= "badgename = '";
+                   $updates .= mysql_real_escape_string($_POST['badgename-'.$row['id']]);
+                   $updates .= "'";
+               }
+
+               if ($_POST['ribboncolor-'.$row['id']] != $row['ribbon_color']) {
+                   if ($updates != "") { $updates .= ", "; }
+                   $updates .= "ribbon_color = '";
+                   $updates .= mysql_real_escape_string($_POST['ribboncolor-'.$row['id']]);
+                   $updates .= "'";
+               }
+
+               if ($_POST['ribbonfont-'.$row['id']] != $row['ribbon_font']) {
+                   if ($updates != "") { $updates .= ", "; }
+                   $updates .= "ribbon_font = '";
+                   $updates .= mysql_real_escape_string($_POST['ribbonfont-'.$row['id']]);
+                   $updates .= "'";
+               }
+
+               if ($_POST['textcolor-'.$row['id']] != $row['ribbon_textcolor']) {
+                   if ($updates != "") { $updates .= ", "; }
+                   $updates .= "ribbon_textcolor = '";
+                   $updates .= mysql_real_escape_string($_POST['textcolor-'.$row['id']]);
+                   $updates .= "'";
+               }
+
+
+	       $needs_email = 0;
+	       if ($_POST['confirm-'.$row['id']] == "yes") {
+  	           $needs_email = 1;
+               }
+	       if ($_POST['remind-'.$row['id']] == "yes") {
+  	           $needs_email = 1;
+               }
+               if ($_POST['confirm-'.$row['id']] != $row['email_processed']) {
+                   if ($updates != "") { $updates .= ", "; }
+                   $updates .= "email_processed = '";
+                   $updates .= mysql_real_escape_string($_POST['confirm-'.$row['id']]);
+                   $updates .= "'";
+               }
+
+               if ($_POST['remind-'.$row['id']] != $row['email_reminder']) {
+                   if ($updates != "") { $updates .= ", "; }
+                   $updates .= "email_reminder = '";
+                   $updates .= mysql_real_escape_string($_POST['remind-'.$row['id']]);
+                   $updates .= "'";
+               }
+
+               if ($needs_email == 1) {
+                   if ($_POST['email-'.$row['id']] == "") {
+                       $has_error = 1;
+                       $error_loc = "email-".$row['id'];
+                       $error_text = "Email address cannot be blank if a reminder ";
+		       if ($_POST['confirm-'.$row['id']]) {
+		           $error_text .= "or confirmation ";
+                       }
+		       $error_text .= "email is requested.";
+                       $error_sql = "INSERT INTO order_errors (session,error_type,error_text,error_field) ";
+                       $error_sql .= "VALUES ('".$session."','error','".$error_text."','".$error_loc."')";
+                       $temp = mysql_query($error_sql);
+                   } else {
+                       if (!validate_email($_POST['email-'.$row['id']])) {
+                           $has_error = 1;
+                           $error_loc = "email-".$row['id'];
+                           $error_text = "Email address is not valid.";
+                           $error_sql = "INSERT INTO order_errors (session,error_type,error_text,error_field) ";
+                           $error_sql .= "VALUES ('".$session."','error','".$error_text."','".$error_loc."')";
+                           $temp = mysql_query($error_sql);
+                       }
+
+
+                   }
+               }
+
+               if ($_POST['email-'.$row['id']] != $row['email']) {
+                   if ($updates != "") { $updates .= ", "; }
+                   $updates .= "email = '";
+                   $updates .= mysql_real_escape_string($_POST['email-'.$row['id']]);
+                   $updates .= "'";
+               }
+
+               if ($_POST['qty-'.$row['id']] != $row['ribbon_qty']) {
+	           $ribbon_error = 0;
+                   $error_text = "Ribbon quantity must be a whole number that is not zero.";
+                   if (!ctype_digit($_POST['qty-'.$row['id']])) {
+		       $ribbon_error = 1;
+                       $error_text = "Ribbon quantity must be a whole number.";
+                   } else {
+		       $temp = 1 + $_POST['qty-'.$row['id']];
+                       if ($temp < 2) {
+                           $ribbon_error = 1;
+                           $error_text = "Ribbon quantity cannot be zero.  Use the Delete box to remove a ribbon order.";
+                       }
+                   }
+		   if ($_POST['qty-'.$row['id']] > 2000) {
+		       $ribbon_error = 1;
+		       $error_text = "Our vendor is not set up to handle that quantity.  Please contact ";
+		       $error_text .= RIBBON_EMAIL_TO;
+		   }
+
+		   if ($ribbon_error == 1) {
+	               $has_error = 1;
+                       $error_loc = "qty-".$row['id'];
+                       $error_sql = "INSERT INTO order_errors (session,error_type,error_text,error_field) ";
+                       $error_sql .= "VALUES ('".$session."','error','".$error_text."','".$error_loc."')";
+                       $temp = mysql_query($error_sql);
+                   } else {
+                       if ($updates != "") { $updates .= ", "; }
+                       $updates .= "ribbon_qty = '";
+                       $updates .= mysql_real_escape_string($_POST['qty-'.$row['id']]);
+                       $updates .= "'";
+		       $ribbon_cost = ($_POST['qty-'.$row['id']] * RIBBON_PER_ITEM_FEE);
+                       $ribbon_cost += RIBBON_SETUP_FEE;
+		       $updates .= ",item_cost = '".$ribbon_cost."'";
+                   }
+               }
+
+/**** Desired code upgrade: if ribbontext2 has text but ribbontext1 is empty, use text2 as text1 and move on****/
+
+               if ($_POST['ribbontext1-'.$row['id']] != $row['ribbon_text']) {
+                   if ($_POST['ribbontext1-'.$row['id']] == "") {
+	               $has_error = 1;
+                       $error_loc = "ribbontext1-".$row['id'];
+                       $error_text = "Ribbon cannot be blank.";
+                       $error_sql = "INSERT INTO order_errors (session,error_type,error_text,error_field) ";
+                       $error_sql .= "VALUES ('".$session."','error','".$error_text."','".$error_loc."')";
+                       $temp = mysql_query($error_sql);
+                   } 
+		   if (strlen($_POST['ribbontext1-'.$row['id']]) > 25) {
+		       $has_error = 1;
+		       $error_loc = "ribbontext1-".$row['id'];
+		       $error_text = "Text length must be less than 25 characters per line";
+                       $error_sql = "INSERT INTO order_errors (session,error_type,error_text,error_field) ";
+                       $error_sql .= "VALUES ('".$session."','error','".$error_text."','".$error_loc."')";
+                       $temp = mysql_query($error_sql);
+		   }
+		   if (!$has_error) {
+                       if ($updates != "") { $updates .= ", "; }
+                       $updates .= "ribbon_text = '";
+                       $updates .= mysql_real_escape_string($_POST['ribbontext1-'.$row['id']]);
+                       $updates .= "'";
+                   }
+               }
+
+               if ($_POST['ribbontext2-'.$row['id']] != $row['ribbon_text2']) {
+                       if ($updates != "") { $updates .= ", "; }
+                       $updates .= "ribbon_text2 = '";
+                       $updates .= mysql_real_escape_string($_POST['ribbontext2-'.$row['id']]);
+                       $updates .= "'";
+               }
+  	       if (strlen($_POST['ribbontext2-'.$row['id']]) > 25) {
+		   $has_error = 1;
+		   $error_loc = "ribbontext2-".$row['id'];
+		   $error_text = "Text length must be less than 25 characters per line";
+                   $error_sql = "INSERT INTO order_errors (session,error_type,error_text,error_field) ";
+                   $error_sql .= "VALUES ('".$session."','error','".$error_text."','".$error_loc."')";
+                   $temp = mysql_query($error_sql);
+	       }
+
+
+
+	       
+
+               //If something changed, update it.
+               if ($updates != "") {
+                   $update_sql = "UPDATE order_details SET ".$updates." WHERE id=".$row['id'];
+                   $temp = mysql_query($update_sql);
+               }
+           } //End: else ($_POST['delete-'.$row['id']])
+
+        } //End: while($row = mysql_fetch_array($sql))
+
+        //When we're done, head back to the edit page
+        header("Location: ".BASEURL."/editcart.php");
+
+//For each cart item, check to see if anything changed.
+//If something changed, make note of it.
+//If it was "delete", get rid of it.
+//Otherwise, check submission items for errors:
+// - Is there an email address if either of the email choices is "yes"?
+// - Do ribbons have a quantity?
+// - Do ribbons have any text?
+//Update the database with everything that changed (and is allowed)
+
+    } //End: if ($session != "")
+
+} //End of function: edit_cart();
+
+function list_current_cart($session,$editing=0) {
+
+  global $premium_ribbon_color;
+
+  echo "<div class='cart-container'>\n";
+
+  if ($session != "") {
+      $sql = mysql_query("SELECT * FROM order_details WHERE session='".$session."'");
+      $cart_is_empty = 1;
+      $total_cost = 0;
+      $cart_contents = "";
+
+      while ($row = mysql_fetch_array($sql)) {
+         $id = $row['id'];
+         $cart_is_empty = 0;
+         $is_badge = 0;
+         $cart_contents .= "<tr><td><b>";
+         switch ($row['item_type']) {
+            case "ribbon":
+               $cart_contents .= "Ribbon order";
+               break;
+            default:
+               $cart_contents .= ucfirst($row['item_type'])." badge";
+               $is_badge = 1;
+         }
+         //Get the errors, if any
+         $error_sql = "SELECT * FROM order_errors WHERE session='".$session."'";
+         $error_temp = mysql_query($error_sql);
+         while ($error_row = mysql_fetch_array($error_temp)) {
+             $error_type[$error_row['id']] = $error_row['error_type'];
+             $error_loc[$error_row['error_field']] = $error_row['id'];
+             $error_text[$error_row['id']] = $error_row['error_text'];
+         }
+         
+         $cart_contents .= "</b>";
+         if ($is_badge) {
+	     if ($editing) {
+	     	 $cart_contents .= "<br/>Last: <input type='text' size='25' name='lastname-";
+		 $cart_contents .= $id."' value='";
+             } else {
+	         $cart_contents .= " for ";
+	     }
+             if ($editing) {
+                 $cart_contents .= htmlspecialchars($row['lastname'],ENT_QUOTES);
+             } else {
+                 $cart_contents .= $row['lastname'];
+             }
+	     if ($editing) {
+		 $cart_contents .= "'>";
+                 if ($error_loc['lastname-'.$id]) { 
+		     $cart_contents .= "<span class='".$error_type[$error_loc['lastname-'.$id]]."'>";
+                     $cart_contents .= $error_text[$error_loc['lastname-'.$id]]."</span>\n";
+                     $delete_sql = mysql_query("DELETE FROM order_errors WHERE id='".$error_loc['lastname-'.$id]."'");
+                 }
+	     	 $cart_contents .= "<br/>First: <input type='text' size='25' name='firstname-";
+		 $cart_contents .= $row['id']."' value='";
+             } else {
+	         $cart_contents .= ", ";
+	     }
+             if ($editing) {
+    	         $cart_contents .= htmlspecialchars($row['firstname'],ENT_QUOTES);
+             } else {
+    	         $cart_contents .= $row['firstname'];
+             }
+	     if ($editing) {
+		 $cart_contents .= "'>";
+                 if ($error_loc['firstname-'.$id]) { 
+		     $cart_contents .= "<span class='".$error_type[$error_loc['firstname-'.$id]]."'>";
+                     $cart_contents .= $error_text[$error_loc['firstname-'.$id]]."</span>\n";
+                     $delete_sql = mysql_query("DELETE FROM order_errors WHERE id='".$error_loc['firstname-'.$id]."'");
+                 }
+	     	 $cart_contents .= "<br/>Printed as: <input type='text' size='25' name='badgename-";
+		 $cart_contents .= $row['id']."' value='";
+		 $cart_contents .= htmlspecialchars($row['badgename'],ENT_QUOTES)."'>";
+                 if ($errors['badgename_'.$row['id']]) { 
+		     $cart_contents .= "<span class='error'>".$errors['badgename_'.$row['id']]."</span>\n";
+                 }
+	     } else {
+                 if ($row['badgename'] != "") {
+                     $cart_contents .= " (printed as ".$row['badgename'].")";
+                 } else {
+                     $cart_contents .= " (blank badge)";
+                 }
+             }
+
+         } else {
+	     if ($editing) { 
+	         $cart_contents .= "<br/>"; 
+             }
+             $cart_contents .= " Quantity: ";
+	     if ($editing) { 
+	         $cart_contents .= "<input type-'text' size='10' name='qty-"; 
+		 $cart_contents .= $row['id']."' value='";
+             }
+	     $cart_contents .= $row['ribbon_qty'];
+	     if ($editing) { 
+	         $cart_contents .= "'>"; 
+                 if ($error_loc['qty-'.$id]) { 
+		     $cart_contents .= "<span class='".$error_type[$error_loc['qty-'.$id]]."'>";
+                     $cart_contents .= $error_text[$error_loc['qty-'.$id]]."</span>\n";
+                     $delete_sql = mysql_query("DELETE FROM order_errors WHERE id='".$error_loc['qty-'.$id]."'");
+                 }
+
+        	 $cart_contents .= "<br/>Ribbon color: <select name='ribboncolor-";
+                 $cart_contents .= $row['id']."'>\n";
+        	 foreach ($GLOBALS['ribbon_color'] as $location => $color) {
+            	     $cart_contents .= "<option value='".$color."'";
+                     if ($row['ribbon_color'] == $color) { $cart_contents .= " selected"; }
+            	     $cart_contents .= ">".$color;
+            	     if ($location) {
+                         $cart_contents .= " (".$location.")";
+            	     }
+                     $cart_contents .= "</option>\n";
+
+                 }
+
+       	         if ($premium_ribbon_color && !empty($premium_ribbon_color)) {
+            	     $cart_contents .= "<option value=''>--PREMIUM COLORS COST EXTRA--</option>\n";
+            	     foreach ($premium_ribbon_color as $plocation => $pcolor) {
+                    	$cart_contents .= "<option value='".$pcolor."'";
+                	if ($_POST['ribbon_color'] == $pcolor) { echo " selected"; }
+                	$cart_contents .= ">".$pcolor." - PREMIUM";
+                	if ($plocation) { $cart_contents .= " (".$plocation.")"; }
+                        $cart_contents .= "</option>\n";
+                     }
+                 }
+
+
+                 $cart_contents .= "</select>\n";
+
+        	 $cart_contents .= "<br/>Text color: <select name='textcolor-";
+                 $cart_contents .= $row['id']."'>\n";
+        	 foreach ($GLOBALS['ribbon_text'] as $color) {
+            	     $cart_contents .= "<option value='".$color."'";
+                     if ($row['ribbon_textcolor'] == $color) { $cart_contents .= " selected"; }
+            	     $cart_contents .= ">".$color;
+                     $cart_contents .= "</option>\n";
+                 }
+                 $cart_contents .= "</select>\n";
+
+             } else {
+                 $cart_contents .= " ribbons with ".$row['ribbon_textcolor'];
+                 $cart_contents .= " text on a ".ucfirst($row['ribbon_color'])." background.";
+             }
+             $cart_contents .= "<br/>Font: ";
+             if ($editing) {
+                 $cart_contents .= "<select name='ribbonfont-";
+                 $cart_contents .= $row['id']."'>\n";
+		 foreach ($GLOBALS['ribbon_font_choices'] as $fontname => $fontdisplay) {
+                     $cart_contents .= "<option value='".$fontname."'";
+		     if ($row['ribbon_font'] == $fontname) {$cart_contents .= " selected"; }
+		     $cart_contents .= ">".$fontdisplay;
+		     $cart_contents .= "</option>\n";
+                 }
+		 $cart_contents .= "</select>\n";
+	     } else {
+                 $cart_contents .= $row['ribbon_font'];
+             }
+
+             $cart_contents .= "<br/>Text, line 1: ";
+	     if ($editing) { 
+	         $cart_contents .= "<input type='text' size='25' name='ribbontext1-"; 
+		 $cart_contents .= $row['id']."' value='";
+             }
+             $cart_contents .= $row['ribbon_text'];
+	     if ($editing) { 
+	         $cart_contents .= "'>"; 
+                 if ($error_loc['ribbontext1-'.$id]) { 
+		     $cart_contents .= "<span class='".$error_type[$error_loc['ribbontext1-'.$id]]."'>";
+                     $cart_contents .= $error_text[$error_loc['ribbontext1-'.$id]]."</span>\n";
+                     $delete_sql = mysql_query("DELETE FROM order_errors WHERE id='".$error_loc['ribbontext1-'.$id]."'");
+                 }
+             }
+
+             if ($row['ribbon_text2'] OR $editing) {
+                 $cart_contents .= "<br/>Text, line 2: ";
+             }
+	     if ($editing) { 
+	         $cart_contents .= "<input type-'text' size='25' name='ribbontext2-"; 
+		 $cart_contents .= $row['id']."' value='";
+             }
+             if ($row['ribbon_text2'] OR $editing) {
+                 $cart_contents .= $row['ribbon_text2'];
+             }
+	     if ($editing) { 
+	         $cart_contents .= "'>"; 
+                 if ($error_loc['ribbontext2-'.$id]) { 
+		     $cart_contents .= "<span class='".$error_type[$error_loc['ribbontext2-'.$id]]."'>";
+                     $cart_contents .= $error_text[$error_loc['ribbontext2-'.$id]]."</span>\n";
+                     $delete_sql = mysql_query("DELETE FROM order_errors WHERE id='".$error_loc['ribbontext2-'.$id]."'");
+                 }
+             }
+         }
+
+         if ($row['email'] OR $editing) {
+             $cart_contents .= "<br/>";
+             if ($editing) { 
+	         $cart_contents .= "Email: <input type='text' size='40' name='email-".$row['id']."' value='";
+             }
+             $cart_contents .= htmlspecialchars($row['email'],ENT_QUOTES);
+             if ($editing) {
+                 $cart_contents .= "'>";
+                 if ($error_loc['email-'.$id]) { 
+		     $cart_contents .= "<span class='".$error_type[$error_loc['email-'.$id]]."'>";
+                     $cart_contents .= $error_text[$error_loc['email-'.$id]]."</span>\n";
+                     $delete_sql = mysql_query("DELETE FROM order_errors WHERE id='".$error_loc['email-'.$id]."'");
+                 }
+             }
+         }
+
+         //Confirmation email
+         if ($is_badge) {
+             if ($editing) {
+                 $cart_contents .= "<br/>Send a confirmation email when this order is processed?";
+                 $cart_contents .= "<input type='radio' name='confirm-".$row['id']."'";
+                 $cart_contents .= " value='yes'";
+                 if ($row['email_processed'] == "yes") {
+		     $cart_contents .= " checked";
+                 }
+                 $cart_contents .= "> Yes - No ";
+                 $cart_contents .= "<input type='radio' name='confirm-".$row['id']."'";
+                 $cart_contents .= " value='no'";
+                 if ($row['email_processed'] == "no") {
+		     $cart_contents .= " checked";
+                 }
+                 $cart_contents .= ">";
+                 if ($error_loc['confirm-'.$id]) { 
+		     $cart_contents .= "<span class='".$error_type[$error_loc['confirm-'.$id]]."'>";
+                     $cart_contents .= $error_text[$error_loc['confirm-'.$id]]."</span>\n";
+                     $delete_sql = mysql_query("DELETE FROM order_errors WHERE id='".$error_loc['confirm-'.$id]."'");
+                 }
+             } else {
+                 if ($row['email_processed'] == "yes") {
+                     $cart_contents .= "<br/>An email will be sent when this badge is fully processed.\n";
+		 }
+             }
+         }
+
+         //Reminder email
+         if ($editing) {
+             $cart_contents .= "<br/>Send a reminder email about a week before the convention?";
+             $cart_contents .= "<input type='radio' name='remind-".$row['id']."'";
+             $cart_contents .= " value='yes'";
+             if ($row['email_reminder'] == "yes") {
+  	         $cart_contents .= " checked";
+             }
+             $cart_contents .= "> Yes - No ";
+             $cart_contents .= "<input type='radio' name='remind-".$row['id']."'";
+             $cart_contents .= " value='no'";
+             if ($row['email_reminder'] == "no") {
+	         $cart_contents .= " checked";
+             }
+             $cart_contents .= ">";
+             if ($error_loc['remind-'.$id]) { 
+                 $cart_contents .= "<span class='".$error_type[$error_loc['remind-'.$id]]."'>";
+                 $cart_contents .= $error_text[$error_loc['remind-'.$id]]."</span>\n";
+                 $delete_sql = mysql_query("DELETE FROM order_errors WHERE id='".$error_loc['remind-'.$id]."'");
+             }
+         } else {
+             if ($row['email_reminder'] == "yes") {
+                 $cart_contents .= "<br/>A reminder email will be sent about a week before the convention.";
+             }
+         }
+         $cart_contents .= "</td>\n<td>";
+         $cart_contents .= $row['item_cost'];
+         $total_cost += $row['item_cost'];
+         $cart_contents .= "</td>\n";
+
+         if ($editing) {
+	     $cart_contents .= "<td>";
+             $cart_contents .= "<input type='checkbox' name='delete-".$row['id']."' value='delete'>";
+	     $cart_contents .= " Delete";
+	     $cart_contents .= "</td>";
+	 }
+
+         $cart_contents .= "</tr>\n";
+      }
+      if (!$cart_is_empty) {
+          $formatted_total_cost = number_format($total_cost,2);
+          echo "<h3 align='center'>Your current cart</h3>\n";
+          echo "<table class='cart'>\n";
+          echo $cart_contents;
+          echo "<tr><td><b>Total:</b></td><td>".$formatted_total_cost."</td></tr>\n";
+          if (!$editing) {
+              echo "<tr><td><a href='editcart.php'>Edit Cart</a></td>";
+              echo "<td><a href='review.php'>Review & Checkout</a></td></tr>\n";
+          }
+          echo "</table>\n";
+
+          if ($editing) {
+               echo "<p align='center'><input type='submit' name='submit' value='Update cart'></p>\n";
+          }
+
+      } else {
+
+          echo "<table class='cart'>\n";
+	  echo "<tr><td width='100%' align='center'>Your cart is currently empty.</td></tr>\n";
+          echo "</table>\n";
+      }
+
+//      if (TODAY <= "2014-05-04") {
+//          echo "<h2 class='success'><b>You are ordering badges for 2015!</b>  If you try to pick up this order at the 2014 convention, Registration will ";
+//          echo "laugh in your face.  And they won't give you a refund, either.</h2>";
+//      }
+
+      echo "<div ";
+      if (RIBBONS_AVAILABLE) {
+          echo "class='half'";
+      } else {
+          echo "class='full'";
+      }
+      echo ">";
+      if (TODAY < PREREG_CLOSES) {
+          echo "<form action='./addbadge.php'>\n";
+          echo "<input type='submit' value='Add a badge'>";
+          echo "</form>\n";
+      } else {
+          echo "<p>Badge pre-registration is now closed.  Badges may still be purchased at the ";
+          echo "convention for the at-the-door price of $".AT_DOOR_BADGE.".</p>\n";
+      }
+      echo "</div>\n";
+
+      //Ribbon options
+      if (RIBBONS_AVAILABLE) {
+          echo "<div class='half'>";
+          if (TODAY < RIBBON_CLOSES) {
+              echo "<form action='./addribbon.php'>\n";
+              echo "<input type='submit' value='Add a ribbon'>";
+	      echo "</form>\n";
+          } else {
+              echo "<p align='center'>Ribbon orders are now closed.</p>";
+          }
+          echo "</div>\n";
+       }
+
+  }
+  echo "</div>\n";
+}
+
+function validate_email($email) {
+    $allowed_chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890@_.-+";
+ /* Does it have disallowed characters? */
+    if (strspn($email,$allowed_chars) != strlen($email)) {
+      return false;
+    }
+ /* It must have one and only one "@" sign */
+    // Since we'll need to strip off the first bits anyway, split it into two arrays
+    $first = explode("@",$email);
+    if (count($first) != 2) { return false; }
+ /* It must have at least one character before the "@" */
+    if (strlen($first[0]) < 1) { return false; }
+ /* It must have at least one "." after the "@" */
+    // Again, we have to look in specific places, so split it up
+    $second = explode(".",$first[1]);
+    $sizeof2 = count($second);
+    if ($sizeof2 < 2) { return false; }
+ /* It must have at least two characters before the last "." */
+    $last = $sizeof2 - 1;
+    if (strlen($second[$last - 1]) < 2) { return false; }
+ /* It must have at least two characters after the last "." */
+    if (strlen($second[$last]) < 2) { return false; }
+    return true;
+}
+
+
+
+?>

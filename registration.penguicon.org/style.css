@@ -1,0 +1,67 @@
+body {
+//  background-color: #ffffff;
+//  color: rgb(187,187,187);
+}
+
+a {
+  color: #0088cc;
+  text-decoration: none;
+}
+
+a:hover {
+  color: #005580;
+  text-decoration: underline;
+}
+
+h1,h3 {
+  clear: both;
+}
+
+table, th, td {
+  border: 1px solid black;
+}
+
+.cart {
+  border: 1px solid black;
+  width: 100%;
+}
+
+.page-container {
+  width: 95%
+  clear: both;
+}
+
+.cart-container {
+  width: 80%;
+  margin: 0 auto;
+  text-align: center;
+  padding: 10px;
+  clear: both;
+}
+
+.full {
+  width: 100%;
+  text-align: center;
+}
+
+.half {
+  width: 50%;
+  text-align: center;
+  float: left;
+}
+
+.clear {
+  clear: both;
+}
+
+table {
+  border-collapse: collapse;
+}
+
+.error {
+  color: red;
+}
+
+.success {
+  color: green;
+}

@@ -1,0 +1,37 @@
+<?php 
+
+function archive_processed_item ( $item_id ) {
+
+    $sql = mysql_query("SELECT * FROM order_details WHERE id ='".$item_id."'");
+    $item_details = mysql_fetch_array ($sql, MYSQL_ASSOC);
+    unset($item_details['id']);
+
+    include_once("database_functions.php");
+    insert_into_database("order_details_archive",$item_details);
+
+    if (mysql_error()) {
+        echo "<p>Error: ".mysql_error();
+    } else {
+        $sql_delete = mysql_query("DELETE FROM order_details WHERE id='".$item_id."'");
+    }
+
+}
+
+function get_order_info ( $order_id ) {
+
+    $sql = mysql_query("SELECT * FROM master_orders WHERE id='".$order_id."'");
+    $row = mysql_fetch_array($sql);
+    return $row;
+
+}
+
+function send_confirmation_email ($mail_to, $mail_text) {
+
+    include_once("../../common.inc.php");
+    $mail_headers = "From: Penguicon Registration <".EMAIL_FROM.">";
+    $subject = "Penguicon ".CON_YEAR." Order Processed";
+    
+    mail($mail_to, $subject, $mail_text, $mail_headers);
+}
+
+?>

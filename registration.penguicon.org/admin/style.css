@@ -1,0 +1,87 @@
+img.badge { height:2.75in; }
+body { background-color: #96b7cb; }
+td { padding: 10px; }
+.break { color: white; page-break-before: always; }
+.smaller { font-size: 14px; }
+
+#left-top {
+  position: absolute;
+  top: .1in;
+  left: .1in;
+  background-color: #96b7cb;
+}
+
+#page {
+  position:relative;
+  page-break-after:always;
+}
+
+#left-center {
+  position: absolute;
+  top: 3.2in;
+  left: .1in;
+  background-color: #96b7cb;
+}
+
+#left-bottom {
+  position: absolute;
+  top: 6.3in;
+  left: .1in;
+  background-color: #96b7cb;
+}
+
+#right-top {
+  position: absolute;
+  top: .1in;
+  left: 4.1in;
+  background-color: #96b7cb;
+}
+
+#right-center {
+  position: absolute;
+  top: 3.2in;
+  left: 4.1in;
+  background-color: #96b7cb;
+}
+
+#right-bottom {
+  position: absolute;
+  top: 6.3in;
+  left: 4.1in;
+  background-color: #000000;
+}
+
+#badgetext {
+  position: absolute;
+  text-align: center;
+  font-family: "Verdana", Arial, sans-serif;
+  font-weight: bold;
+  font-size: 20px;
+  width: 2.7in;
+  color: black;
+  top: 1.2in;
+  left: .5in;
+  margin-left: auto;
+  margin-right: auto;
+  z-index: 2;
+}
+
+#extendedtext {
+  font-family: "Verdana", Arial, sans-serif;
+  font-weight: normal;
+  font-size: 14px;
+}
+
+#badgenumber {
+  position: absolute;
+  width: .4in;
+  top: 2.3in;
+  left: 3.0in;
+  text-align: center;
+  margin-left: auto;
+  margin-right: auto;
+  font-family: "Verdana", Arial, sans-serif;
+  font-weight: bold;
+  font-size: 12px;
+  color: black;
+}

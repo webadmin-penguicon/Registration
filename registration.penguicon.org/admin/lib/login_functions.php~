@@ -1,0 +1,36 @@
+<?php 
+function create_salt()
+{
+    $string = md5(uniqid(rand(), true));
+    return substr($string, 0, 3);
+}
+
+function display_login_form() {
+
+    echo "<form name='login' action='login.php' method='post'>\n";
+    echo "   <br>Username: <input type='text' name='username' />\n";
+    echo "   <br>Password: <input type='password' name='password' />\n";
+    echo "   <br><input type='submit' name='submit' value='Login' />\n";
+    echo "</form>\n";
+}
+
+function is_logged_in()
+{
+    if(isset($_SESSION['registration_admin']) && $_SESSION['registration_admin'])
+        return true;
+    return false;
+}
+
+function logout()
+{
+    $_SESSION = array(); //destroy all of the session variables
+    session_destroy();
+}
+
+function validate_user()
+{
+    session_regenerate_id (); 
+    $_SESSION['registration_admin'] = 1;
+    $_SESSION['userid'] = $userid;
+}
+?>

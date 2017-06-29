@@ -1,0 +1,29 @@
+<?php
+include_once("common.inc.php");
+
+if (!is_logged_in())
+{
+    header('Location: login.php');
+    die();
+} else {
+    echo "Logged in as ".$_SESSION['userid']."  &nbsp; &nbsp; <a href='/admin/logout.php'>Logout</a>\n";
+
+    echo "<br>\n<br>Orders:\n";
+    echo "<br>Enter a payment\n";
+    echo "<br>View and edit payments\n";
+
+    echo "<br>\n<br>Badges:\n";
+    echo "<br>Add a badge\n";
+    echo "<br>View and edit badges\n";
+    echo "<br>Search for a badge\n";
+
+    echo "<br>\n<br>Ribbons:\n";
+    echo "<br>Add a ribbon\n";
+    echo "<br>View and edit ribbons\n";
+
+    echo "<br>\n<br>Reports:\n";
+    echo "<br>Total badge sales, by type\n";
+    echo "<br>Unpaid badges\n";
+}
+
+?>

@@ -1,0 +1,21 @@
+<?php 
+
+insert_into_database($table,$items) {
+
+    $sql_fields = "";
+    $sql_values = "";
+    foreach ($items as $field => $value) {
+        if ($sql_fields != "") { 
+            $sql_fields .= ",";
+        }
+        $sql_fields .= "'".$field."'";
+        if ($sql_values != "") { 
+            $sql_values .= ",";
+        }
+        $sql_values .= "'".$value."'";
+    }
+
+
+}
+
+?>
